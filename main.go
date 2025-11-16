@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -112,61 +111,7 @@ func isHVACXML(b []byte) bool {
 	return false
 }
 
-/* ---------------------- EXTRACT XML ROOT TAG ---------------------- */
-
-func extractRootTag(data []byte) string {
-	s := strings.TrimSpace(string(data))
-	if s == "" {
-		return ""
-	}
-
-	// -----------------------------
-	// 1. XML DETECTION (starts with "<")
-	// -----------------------------
-	if strings.HasPrefix(s, "<") {
-		// Strip XML declaration if present
-		if strings.HasPrefix(s, "<?xml") {
-			if idx := strings.Index(s, "?>"); idx != -1 {
-				s = strings.TrimSpace(s[idx+2:])
-			}
-		}
-
-		// Find opening "<tag"
-		if strings.HasPrefix(s, "<") {
-			// find end of tag name: space or `>`
-			i := 1
-			for i < len(s) && s[i] != ' ' && s[i] != '>' {
-				i++
-			}
-			tag := s[1:i]
-			if tag != "" {
-				return sanitizeTag(tag)
-			}
-		}
-	}
-
-	// -----------------------------
-	// 2. JSON DETECTION
-	// -----------------------------
-	if strings.HasPrefix(s, "{") {
-		// Try to detect a top-level key for better filenames
-		var m map[string]json.RawMessage
-		if err := json.Unmarshal([]byte(s), &m); err == nil {
-			for k := range m {
-				return sanitizeTag(k)
-			}
-		}
-		return "json"
-	}
-
-	// -----------------------------
-	// 3. FALLBACK: empty string
-	// -----------------------------
-
-	return ""
-}
-
-func sanitizeTag(tag string) string {
+func sanitizeString(tag string) string {
 	// Replace unsafe filename characters
 	tag = strings.TrimSpace(tag)
 	tag = strings.ReplaceAll(tag, "/", "_")
@@ -180,10 +125,28 @@ func sanitizeTag(tag string) string {
 	tag = strings.ReplaceAll(tag, "|", "_")
 	tag = strings.ReplaceAll(tag, "&", "_") // Also good to sanitize ampersands
 	tag = strings.ReplaceAll(tag, "=", "_") // And equals signs
-	if tag == "" {
-		return "unknown"
-	}
 	return tag
+}
+func isXML(data []byte) bool {
+	if len(data) == 0 {
+		return false
+	}
+
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			if err == io.EOF {
+				// Reached the end of the document without finding a complete element
+				return false
+			}
+			return false
+		}
+
+		if _, ok := token.(xml.EndElement); ok {
+			return true
+		}
+	}
 }
 
 /* ---------------------- PRETTIFY XML ---------------------- */
@@ -220,6 +183,27 @@ func prettifyXML(data []byte) []byte {
 	return data
 }
 func saveRequestBody(r *http.Request, body []byte) {
+	// Process the body to get the XML data
+	xmlData := body
+	if bytes.HasPrefix(body, []byte("data=")) {
+		encoded := bytes.TrimPrefix(body, []byte("data="))
+		decoded, err := url.QueryUnescape(string(encoded))
+		if err == nil {
+			xmlData = []byte(decoded)
+		}
+	}
+
+	// Check if it's HVAC XML and update metrics
+	if isHVACXML(xmlData) {
+		var status Status
+		if err := xml.Unmarshal(xmlData, &status); err == nil {
+			updateMetrics(status)
+		} else {
+			log.Printf("[HVAC] XML parse failed: %v", err)
+		}
+	}
+
+	// Save the body to disk
 	saveBody(r, body, "")
 }
 
@@ -244,12 +228,7 @@ func saveBody(r *http.Request, body []byte, suffix string) {
 	// Format XML nicely (no-op for non-XML)
 	content = prettifyXML(content)
 
-	// Derive the root from the content
-	root := extractRootTag(content)
-	if root == "" {
-		root = "data"
-	}
-
+	var filename string
 	// Construct filename using URL path
 	path := r.RequestURI
 	if path == "" {
@@ -260,16 +239,15 @@ func saveBody(r *http.Request, body []byte, suffix string) {
 		}
 	}
 	path = strings.TrimPrefix(path, "/") // Remove leading slash
+	path = sanitizeString(path)
 
-	// FIX: Sanitize the *entire path* to remove '?', '&', '=', etc.
-	// This replaces the old strings.ReplaceAll(path, "/", "_")
-	path = sanitizeTag(path)
-
-	filename := r.Method + "-" + path
+	filename = r.Method + "-" + path
 	if suffix != "" {
 		filename += "-" + suffix
 	}
-	filename += ".xml"
+	if isXML(content) {
+		filename += ".xml"
+	}
 
 	// Write file to dataDir (which is /data in Docker, or temp dir in tests)
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
@@ -306,26 +284,6 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	logRequest(r, body)
 	saveRequestBody(r, body)
-
-	/* ---- Parse HVAC XML *FROM REQUEST BODY* ---- */
-	// Handle URL-encoded form data
-	xmlData := body
-	if bytes.HasPrefix(body, []byte("data=")) {
-		encoded := bytes.TrimPrefix(body, []byte("data="))
-		decoded, err := url.QueryUnescape(string(encoded))
-		if err == nil {
-			xmlData = []byte(decoded)
-		}
-	}
-
-	if isHVACXML(xmlData) {
-		var status Status
-		if err := xml.Unmarshal(xmlData, &status); err == nil {
-			updateMetrics(status)
-		} else {
-			log.Printf("[HVAC] XML parse failed: %v", err)
-		}
-	}
 
 	/* ---- FORWARD REQUEST UPSTREAM ---- */
 	// Build the upstream URL using the original Host header

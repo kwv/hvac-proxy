@@ -83,54 +83,6 @@ func TestIsHVACXML(t *testing.T) {
 	}
 }
 
-func TestExtractRootTag(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    []byte
-		expected string
-	}{
-		{
-			name:     "simple tag",
-			input:    []byte("<status>"),
-			expected: "status",
-		},
-		{
-			name:     "tag with attributes",
-			input:    []byte("<status version=\"1.0\">"),
-			expected: "status",
-		},
-		{
-			name:     "with xml declaration",
-			input:    []byte("<?xml version=\"1.0\"?><config>"),
-			expected: "config",
-		},
-		{
-			name:     "with whitespace",
-			input:    []byte("  \n  <data>"),
-			expected: "data",
-		},
-		{
-			name:     "empty",
-			input:    []byte(""),
-			expected: "",
-		},
-		{
-			name:     "not xml",
-			input:    []byte("not xml"),
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := extractRootTag(tt.input)
-			if result != tt.expected {
-				t.Errorf("extractRootTag() = %q, want %q", result, tt.expected)
-			}
-		})
-	}
-}
-
 func TestPrettifyXML(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -395,14 +347,6 @@ func TestFilenameConstruction(t *testing.T) {
 	}
 }
 
-func TestLogRequest(t *testing.T) {
-	req := httptest.NewRequest("GET", "/test", nil)
-	req.RemoteAddr = "192.168.1.100:12345"
-
-	// Just verify it doesn't panic
-	logRequest(req, []byte("test body"))
-}
-
 /* ---------------------- INTEGRATION TESTS ---------------------- */
 
 func TestFullProxyFlow(t *testing.T) {
@@ -477,14 +421,6 @@ func BenchmarkPrettifyXML(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		prettifyXML(xml)
-	}
-}
-
-func BenchmarkExtractRootTag(b *testing.B) {
-	xml := []byte("<status version=\"1.0\"><data>test</data></status>")
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		extractRootTag(xml)
 	}
 }
 

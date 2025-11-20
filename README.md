@@ -55,12 +55,13 @@ Expected to work with:
 # Pull from your registry
 docker pull kwv4/hvac-proxy:latest
 
-# Run the proxy
+# Run the proxy (with optional BLOCK_UPDATES environment variable to block updates)
 docker run -d \
   -p 8080:8080 \
   -v /var/log/hvac:/data \
+  -e BLOCK_UPDATES="true" \ 
   --name hvacproxy \
-  docker pull kwv4/hvac-proxy:latest
+  kwv4/hvac-proxy:latest
 ```
 
 #### Building from Source
@@ -147,6 +148,17 @@ XML files are automatically prettified with 2-space indentation. Only the latest
 ### Configuration
 
 The proxy listens on port 8080 by default. To change this, set the `PORT` environment variable or modify `main.go`.
+
+
+- `BLOCK_UPDATES`: If set to `"true"`, all `<update>` blocks in the XML response will be removed. This is useful for scenarios where updates should be conditionally blocked.
+
+Example usage:
+
+```bash
+BLOCK_UPDATES="true" go run main.go
+```
+
+By default, the application will include all `<update>` blocks unless this variable is explicitly set.
 
 ### Troubleshooting
 

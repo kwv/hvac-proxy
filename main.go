@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -90,12 +90,9 @@ func updateMetrics(s Status) {
 /* ---------------------- LOGGING ---------------------- */
 
 func logRequest(r *http.Request, body []byte) {
-	clientIP, _, _ := net.SplitHostPort(r.RemoteAddr)
-	if clientIP == "" {
-		clientIP = r.RemoteAddr
-	}
-	log.Printf("[REQ] %s → %s %s (%d bytes)",
-		clientIP, r.Method, r.RequestURI, len(body))
+	fullURL := fmt.Sprintf("%s://%s%s", r.URL.Scheme, r.Host, r.RequestURI)
+	log.Printf("[REQ]  %s %s (%d bytes)",
+		r.Method, fullURL, len(body))
 }
 
 /* ---------------------- HVAC XML DETECTION ---------------------- */
@@ -318,6 +315,14 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	var respBuf bytes.Buffer
 	io.Copy(&respBuf, resp.Body)
 	respBody := respBuf.Bytes()
+
+	// Check if updates should be blocked
+	blockUpdates := os.Getenv("BLOCK_UPDATES") == "true"
+	if blockUpdates {
+		// Regex to match all <update> blocks
+		re := regexp.MustCompile(`<update[^>]*>.*?</update>`)
+		respBody = re.ReplaceAll(respBody, []byte{})
+	}
 
 	// Save response body (for GET requests or any response)
 	saveResponseBody(r, respBody, resp.StatusCode)

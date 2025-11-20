@@ -90,7 +90,16 @@ func updateMetrics(s Status) {
 /* ---------------------- LOGGING ---------------------- */
 
 func logRequest(r *http.Request, body []byte) {
-	fullURL := fmt.Sprintf("%s://%s%s", r.URL.Scheme, r.Host, r.RequestURI)
+	// Infer scheme from the connection
+	var scheme string
+	if r.TLS != nil {
+		scheme = "https"
+	} else {
+		scheme = "http"
+	}
+
+	// Build full URL using inferred scheme
+	fullURL := fmt.Sprintf("%s://%s%s", scheme, r.Host, r.RequestURI)
 	log.Printf("[REQ]   %s %s → (%d bytes)", r.Method, fullURL, len(body))
 }
 

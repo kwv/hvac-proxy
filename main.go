@@ -91,8 +91,16 @@ func updateMetrics(s Status) {
 
 func logRequest(r *http.Request, body []byte) {
 	fullURL := fmt.Sprintf("%s://%s%s", r.URL.Scheme, r.Host, r.RequestURI)
-	log.Printf("[REQ]  %s %s (%d bytes)",
-		r.Method, fullURL, len(body))
+	log.Printf("[REQ]   %s %s → (%d bytes)", r.Method, fullURL, len(body))
+}
+
+func logResponse(resp *http.Response, elapsed time.Duration) {
+	// Use the Request field from the response to get URL details
+	fullURL := fmt.Sprintf("%s://%s%s",
+		resp.Request.URL.Scheme,
+		resp.Request.Host,
+		resp.Request.RequestURI)
+	log.Printf("[RESP]  %s %s → %d (elapsed: %v)", resp.Request.Method, fullURL, resp.StatusCode, elapsed)
 }
 
 /* ---------------------- HVAC XML DETECTION ---------------------- */
@@ -307,10 +315,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer resp.Body.Close()
-
-	log.Printf("[RESP] %s %s → %d (elapsed: %v)",
-		r.Method, r.RequestURI, resp.StatusCode, elapsed)
-
+	logResponse(resp, elapsed)
 	/* ---- READ AND SAVE RESPONSE BODY ---- */
 	var respBuf bytes.Buffer
 	io.Copy(&respBuf, resp.Body)

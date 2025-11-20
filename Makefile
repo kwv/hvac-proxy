@@ -1,7 +1,7 @@
 DOCKERHUB_USER ?= kwv4
 IMAGE_NAME ?= hvac-proxy
 # VERSION is the strict, exact tag for releases
-VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null | sed 's/^v//')
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null | sed 's/^v//' || git tag -l 'v*' | sort -V | tail -n1 | sed 's/^v//')
 
 # DEV_VERSION gets a descriptive version for local builds (e.g., "1.2.3-1-gabcdef-dirty")
 # Falls back to "local-dev" if no tags exist
@@ -9,7 +9,7 @@ DEV_VERSION := $(shell git describe --tags --dirty --always 2>/dev/null | sed 's
 
 REMOTE_IMAGE := $(DOCKERHUB_USER)/$(IMAGE_NAME)
 
-.PHONY: build tag push clean release test check-version check-tag build-dev
+.PHONY: build tag push clean release test check-version check-tag build-dev bump
 
 test:
 	go test ./...
@@ -18,6 +18,24 @@ test:
 build-dev:
 	@echo "Building dev image: $(IMAGE_NAME):$(DEV_VERSION)"
 	docker build -t $(IMAGE_NAME):$(DEV_VERSION) .
+
+# 🚀 New target: bump the version, create a new tag, and push it
+bump:
+	@LATEST_TAG=$$(git tag -l 'v*' | sort -V | tail -n1); \
+	if [ -z "$$LATEST_TAG" ]; then \
+		echo "❌ No existing tags found. Please create an initial tag first (e.g., git tag v1.0.0)"; \
+		exit 1; \
+	fi; \
+	CURRENT_VERSION=$$(echo $$LATEST_TAG | sed 's/^v//'); \
+	MAJOR=$$(echo $$CURRENT_VERSION | cut -d. -f1); \
+	MINOR=$$(echo $$CURRENT_VERSION | cut -d. -f2); \
+	PATCH=$$(echo $$CURRENT_VERSION | cut -d. -f3); \
+	NEW_PATCH=$$(expr $$PATCH + 1); \
+	NEW_VERSION=$$MAJOR.$$MINOR.$$NEW_PATCH; \
+	NEW_TAG=v$$NEW_VERSION; \
+	echo "Incrementing version from $$LATEST_TAG to $$NEW_TAG"; \
+	git tag -a $$NEW_TAG -m "Bumped version to $$NEW_TAG"; \
+	git push origin $$NEW_TAG
 
 check-version:
 	@if [ -z "$(VERSION)" ]; then \

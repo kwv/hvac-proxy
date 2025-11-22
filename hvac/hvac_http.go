@@ -69,7 +69,6 @@ func SaveBody(r *http.Request, content []byte, isRequest bool) {
 
 	// Generate a safe, standardized file path for the saved content
 	filepath := CreateFilePath(r, suffix, ext)
-	fmt.Printf("Saving body to %s\n", filepath)
 
 	// Write the content to disk
 	if err := os.WriteFile(filepath, content, 0644); err != nil {

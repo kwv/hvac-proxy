@@ -85,9 +85,13 @@ func (s *Status) ToPrometheus() string {
 	b.WriteString(fmt.Sprintf("fanSpeed %d\n", s.IDU.CFM))
 
 	// Operation Stage
+	value := s.IDU.OPSTAT
+	convertedValue := 0
+	convertedValue, _ = strconv.Atoi(value)
+
 	b.WriteString("# HELP Stage StageName\n")
 	b.WriteString("# TYPE Stage gauge\n")
-	b.WriteString(fmt.Sprintf("stage %s\n", s.IDU.OPSTAT))
+	b.WriteString(fmt.Sprintf("stage %d\n", convertedValue))
 
 	// Filter Life
 	b.WriteString("# HELP filter percent of filter life\n")

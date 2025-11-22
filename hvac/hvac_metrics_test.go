@@ -29,7 +29,7 @@ outdoorAirTemp 63.5
 fanSpeed 437
 # HELP Stage StageName
 # TYPE Stage gauge
-stage off
+stage 0
 # HELP filter percent of filter life
 # TYPE filter gauge
 filter 40

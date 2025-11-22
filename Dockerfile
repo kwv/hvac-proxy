@@ -17,7 +17,7 @@ COPY go.sum* ./
 RUN go mod download
 
 # Copy source code
-COPY main.go .
+COPY . .
 
 # Build the binary
 # Use a common Alpine base for better compatibility with distroless later

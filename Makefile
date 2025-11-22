@@ -9,7 +9,7 @@ DEV_VERSION := $(shell git describe --tags --dirty --always 2>/dev/null | sed 's
 
 REMOTE_IMAGE := $(DOCKERHUB_USER)/$(IMAGE_NAME)
 
-.PHONY: build tag push clean release test check-version check-tag build-dev bump
+.PHONY: build build-dev tag push clean release test check-version show-version check-tag bump bump-minor bump-major
 
 test:
 	go test ./...
@@ -21,21 +21,13 @@ build-dev:
 
 # 🚀 New target: bump the version, create a new tag, and push it
 bump:
-	@LATEST_TAG=$$(git tag -l 'v*' | sort -V | tail -n1); \
-	if [ -z "$$LATEST_TAG" ]; then \
-		echo "❌ No existing tags found. Please create an initial tag first (e.g., git tag v1.0.0)"; \
-		exit 1; \
-	fi; \
-	CURRENT_VERSION=$$(echo $$LATEST_TAG | sed 's/^v//'); \
-	MAJOR=$$(echo $$CURRENT_VERSION | cut -d. -f1); \
-	MINOR=$$(echo $$CURRENT_VERSION | cut -d. -f2); \
-	PATCH=$$(echo $$CURRENT_VERSION | cut -d. -f3); \
-	NEW_PATCH=$$(expr $$PATCH + 1); \
-	NEW_VERSION=$$MAJOR.$$MINOR.$$NEW_PATCH; \
-	NEW_TAG=v$$NEW_VERSION; \
-	echo "Incrementing version from $$LATEST_TAG to $$NEW_TAG"; \
-	git tag -a $$NEW_TAG -m "Bumped version to $$NEW_TAG"; \
-	git push origin $$NEW_TAG
+	$(call bump_version,patch)
+
+bump-minor:
+	$(call bump_version,minor)
+
+bump-major:
+	$(call bump_version,major)
 
 check-version:
 	@if [ -z "$(VERSION)" ]; then \
@@ -44,8 +36,13 @@ check-version:
 	else \
 		echo "✅ Using version: $(VERSION)"; \
 	fi
+show-version:
+	@echo "Release VERSION: $(VERSION)"
+	@echo "Dev VERSION: $(DEV_VERSION)"
 
 check-tag:
+	@command -v jq >/dev/null || { echo "❌ jq is required"; exit 1; }
+	@command -v curl >/dev/null || { echo "❌ curl is required"; exit 1; }
 	@echo "🔍 Checking if Docker tag $(VERSION) already exists..."
 	@TAG_EXISTS=$$(curl -s https://hub.docker.com/v2/repositories/$(REMOTE_IMAGE)/tags/$(VERSION)/ | jq -r '.name // empty'); \
 	if [ "$$TAG_EXISTS" = "$(VERSION)" ]; then \
@@ -74,4 +71,37 @@ clean:
 	# Also clean up the dev image
 	-docker rmi $(IMAGE_NAME):$(DEV_VERSION) || true
 
+
 release: check-version check-tag test build tag push clean
+
+
+define bump_version
+	@LATEST_TAG=$$(git tag -l 'v*' | sort -V | tail -n1); \
+	if [ -z "$$LATEST_TAG" ]; then \
+		echo "❌ No existing tags found. Please create an initial tag first (e.g., git tag v1.0.0)"; \
+		exit 1; \
+	fi; \
+	CURRENT_VERSION=$$(echo $$LATEST_TAG | sed 's/^v//'); \
+	MAJOR=$$(echo $$CURRENT_VERSION | cut -d. -f1); \
+	MINOR=$$(echo $$CURRENT_VERSION | cut -d. -f2); \
+	PATCH=$$(echo $$CURRENT_VERSION | cut -d. -f3); \
+	if [ "$(1)" = "patch" ]; then \
+		NEW_MAJOR=$$MAJOR; \
+		NEW_MINOR=$$MINOR; \
+		NEW_PATCH=$$(expr $$PATCH + 1); \
+	elif [ "$(1)" = "minor" ]; then \
+		NEW_MAJOR=$$MAJOR; \
+		NEW_MINOR=$$(expr $$MINOR + 1); \
+		NEW_PATCH=0; \
+	elif [ "$(1)" = "major" ]; then \
+		NEW_MAJOR=$$(expr $$MAJOR + 1); \
+		NEW_MINOR=0; \
+		NEW_PATCH=0; \
+	fi; \
+	NEW_VERSION=$$NEW_MAJOR.$$NEW_MINOR.$$NEW_PATCH; \
+	NEW_TAG=v$$NEW_VERSION; \
+	echo "Incrementing version from $$LATEST_TAG to $$NEW_TAG"; \
+	git tag -a $$NEW_TAG -m "Bumped version to $$NEW_TAG"; \
+	git push origin $$NEW_TAG
+endef
+

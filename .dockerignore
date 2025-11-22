@@ -2,3 +2,5 @@
 *.md
 *_test.go
 Makefile
+data
+*.xml

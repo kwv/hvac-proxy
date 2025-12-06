@@ -2,8 +2,9 @@
 FROM golang:1.25-alpine AS builder
 
 # Set labels *after* the FROM instruction
+ARG VERSION=local
 LABEL maintainer="kwv4"
-LABEL version="1.0"
+LABEL version="$VERSION"
 LABEL description="A lightweight HTTP proxy for Carrier/Bryant Infinity HVAC systems that logs XML traffic and exposes Prometheus-compatible metrics."
 LABEL repository="https://github.com/kwv/hvac-proxy"
 

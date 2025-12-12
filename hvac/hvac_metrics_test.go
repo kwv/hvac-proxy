@@ -1,6 +1,7 @@
 package hvac_test
 
 import (
+	"encoding/json"
 	"hvac-proxy/hvac"
 	"testing"
 
@@ -51,4 +52,25 @@ localtime 20240405143000
 `
 
 	assert.Equal(t, expected, actual)
+}
+
+func TestStatusJSON(t *testing.T) {
+	status := hvac.Status{
+		OAT:      63.5,
+		IDU:      hvac.IDU{CFM: 437, OPSTAT: "off"},
+		FiltrLvl: 40,
+		Zones: hvac.Zones{
+			Zones: []hvac.Zone{
+				{ID: 1, CurrentTemp: 72.3, RelativeHumidity: 45, HeatSetPoint: 68.0, CoolSetPoint: 75.0},
+			},
+		},
+		LocalTime: "2024-04-05T14:30:00Z",
+	}
+
+	// Marshaling to JSON
+	importJSON, err := json.Marshal(status)
+	assert.NoError(t, err)
+
+	expectedJSON := `{"localTime":"2024-04-05T14:30:00Z","outdoorAirTemp":63.5,"filterLevel":40,"idu":{"cfm":437,"opstat":"off"},"zones":{"zones":[{"id":1,"currentTemp":72.3,"relativeHumidity":45,"heatSetPoint":68,"coolSetPoint":75}]}}`
+	assert.JSONEq(t, expectedJSON, string(importJSON))
 }

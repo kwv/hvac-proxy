@@ -96,6 +96,7 @@ func init() {
 	os.Setenv("PORT", port)
 }
 func main() {
+	hvac.InitMQTT()
 
 	http.HandleFunc("/", proxyHandler)
 	http.HandleFunc("/metrics", hvac.HandleMetrics)

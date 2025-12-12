@@ -1,6 +1,7 @@
 package hvac
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"net/http"
@@ -9,7 +10,44 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
+
+var mqttClient mqtt.Client
+
+// InitMQTT initializes the MQTT client if MQTT_BROKER is set.
+func InitMQTT() {
+	broker := os.Getenv("MQTT_BROKER")
+	if broker == "" {
+		return
+	}
+
+	opts := mqtt.NewClientOptions()
+	opts.AddBroker(broker)
+	opts.SetClientID("hvac-proxy")
+
+	username := os.Getenv("MQTT_USER")
+	if username != "" {
+		opts.SetUsername(username)
+		opts.SetPassword(os.Getenv("MQTT_PASSWORD"))
+	}
+
+	opts.OnConnect = func(c mqtt.Client) {
+		fmt.Println("Connected to MQTT broker")
+	}
+	opts.OnConnectionLost = func(c mqtt.Client, err error) {
+		fmt.Printf("Connection lost: %v\n", err)
+	}
+
+	client := mqtt.NewClient(opts)
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		fmt.Printf("Error connecting to MQTT broker: %v\n", token.Error())
+		return
+	}
+
+	mqttClient = client
+}
 
 // This file contains functions to parse HVAC status XML data and generate
 // Prometheus-formatted metrics, which are saved to disk.
@@ -20,32 +58,32 @@ import (
 
 // IDU represents the Indoor Unit data in the XML.
 type IDU struct {
-	CFM    int    `xml:"cfm"`    // Fan speed in cubic feet per minute
-	OPSTAT string `xml:"opstat"` // Operation status of the unit
+	CFM    int    `xml:"cfm" json:"cfm"`       // Fan speed in cubic feet per minute
+	OPSTAT string `xml:"opstat" json:"opstat"` // Operation status of the unit
 }
 
 // Zones represents the collection of zones in the HVAC system.
 type Zones struct {
-	Zones []Zone `xml:"zone"` // List of individual zone data
+	Zones []Zone `xml:"zone" json:"zones"` // List of individual zone data
 }
 
 // Zone represents a specific zone in the HVAC system.
 type Zone struct {
-	ID               int     `xml:"id,attr"` // Zone ID
-	CurrentTemp      float64 `xml:"rt"`      // Current temperature in the zone
-	RelativeHumidity int     `xml:"rh"`      // Relative humidity in the zone
-	HeatSetPoint     float64 `xml:"htsp"`    // Heating set point temperature
-	CoolSetPoint     float64 `xml:"clsp"`    // Cooling set point temperature
+	ID               int     `xml:"id,attr" json:"id"`          // Zone ID
+	CurrentTemp      float64 `xml:"rt" json:"currentTemp"`      // Current temperature in the zone
+	RelativeHumidity int     `xml:"rh" json:"relativeHumidity"` // Relative humidity in the zone
+	HeatSetPoint     float64 `xml:"htsp" json:"heatSetPoint"`   // Heating set point temperature
+	CoolSetPoint     float64 `xml:"clsp" json:"coolSetPoint"`   // Cooling set point temperature
 }
 
 // Status represents the overall status of the HVAC system.
 type Status struct {
-	XMLName   xml.Name `xml:"status"`    // Root XML element
-	LocalTime string   `xml:"localTime"` // Local time from the system
-	OAT       float64  `xml:"oat"`       // Outdoor air temperature in Fahrenheit
-	FiltrLvl  int      `xml:"filtrlvl"`  // Filter life percentage
-	IDU       IDU      `xml:"idu"`       // Indoor Unit data
-	Zones     Zones    `xml:"zones"`     // Zones data
+	XMLName   xml.Name `xml:"status" json:"-"`             // Root XML element
+	LocalTime string   `xml:"localTime" json:"localTime"`  // Local time from the system
+	OAT       float64  `xml:"oat" json:"outdoorAirTemp"`   // Outdoor air temperature in Fahrenheit
+	FiltrLvl  int      `xml:"filtrlvl" json:"filterLevel"` // Filter life percentage
+	IDU       IDU      `xml:"idu" json:"idu"`              // Indoor Unit data
+	Zones     Zones    `xml:"zones" json:"zones"`          // Zones data
 }
 
 // SaveMetricsFromXML parses the given XML data and saves Prometheus-formatted metrics to a file.
@@ -60,6 +98,9 @@ func SaveMetricsFromXML(xmlData []byte) error {
 		return fmt.Errorf("failed to unmarshal XML: %w", err)
 	}
 
+	// Publish to MQTT if enabled
+	go PublishMQTT(&status)
+
 	prometheusStr := status.ToPrometheus()
 
 	filePath := filepath.Join(os.Getenv("DATA_DIR"), "metrics_last.txt")
@@ -68,6 +109,30 @@ func SaveMetricsFromXML(xmlData []byte) error {
 	}
 
 	return nil
+}
+
+// PublishMQTT publishes the status to the MQTT topic.
+func PublishMQTT(s *Status) {
+	if mqttClient == nil || !mqttClient.IsConnected() {
+		return
+	}
+
+	topic := os.Getenv("MQTT_TOPIC")
+	if topic == "" {
+		topic = "/hvac/"
+	}
+
+	payload, err := json.Marshal(s)
+	if err != nil {
+		fmt.Printf("Failed to marshal status to JSON: %v\n", err)
+		return
+	}
+
+	token := mqttClient.Publish(topic, 0, false, payload)
+	token.Wait()
+	if token.Error() != nil {
+		fmt.Printf("Failed to publish to MQTT: %v\n", token.Error())
+	}
 }
 
 // ToPrometheus generates a Prometheus-formatted string directly from the Status data.

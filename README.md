@@ -7,6 +7,7 @@ A lightweight HTTP proxy for Carrier/Bryant Infinity HVAC systems that logs XML 
 - 🔍 **Traffic Inspection** - Intercepts and logs all HTTP requests/responses between your thermostat and HVAC system
 - 📊 **Prometheus Metrics** - Exposes temperature, humidity, fan speed, and system status as Prometheus gauges
 - 💾 **XML Logging** - Saves prettified XML payloads to disk for analysis
+- 📡 **MQTT Support** - Optionally publish status to MQTT topic
 - 🔄 **Transparent Proxy** - Forwards all traffic unmodified to maintain system functionality
 - 🐳 **Docker Ready** - Minimal image size (~2MB) with multi-stage builds
 
@@ -151,6 +152,15 @@ The proxy listens on port 8080 by default. To change this, set the `PORT` enviro
 
 
 - `BLOCK_UPDATES`: If set to `"true"`, all `<update>` blocks in the XML response will be removed. This is useful for scenarios where updates should be conditionally blocked.
+
+### MQTT Configuration (Optional)
+
+Authentication is optional (leave user/password blank if not needed). To enable MQTT, you MUST set `MQTT_BROKER`.
+
+- `MQTT_BROKER`: Broker URL (e.g., `tcp://localhost:1883`). **Required to enable MQTT.**
+- `MQTT_TOPIC`: Topic to publish to (default: `/hvac/`).
+- `MQTT_USER`: MQTT username.
+- `MQTT_PASSWORD`: MQTT password.
 
 Example usage:
 

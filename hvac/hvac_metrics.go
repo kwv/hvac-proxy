@@ -119,16 +119,27 @@ func PublishMQTT(s *Status) {
 
 	topic := os.Getenv("MQTT_TOPIC")
 	if topic == "" {
-		topic = "/hvac/"
+		topic = "hvac/"
+	}
+	qosStr := os.Getenv("MQTT_QOS")
+	var qos byte
+	if qosStr != "" {
+		q, _ := strconv.Atoi(qosStr)
+		qos = byte(q)
 	}
 
+	retainedStr := os.Getenv("MQTT_RETAINED")
+	var retained bool
+	if retainedStr != "" {
+		retained, _ = strconv.ParseBool(retainedStr)
+	}
 	payload, err := json.Marshal(s)
 	if err != nil {
 		fmt.Printf("Failed to marshal status to JSON: %v\n", err)
 		return
 	}
 
-	token := mqttClient.Publish(topic, 0, false, payload)
+	token := mqttClient.Publish(topic, qos, retained, payload)
 	token.Wait()
 	if token.Error() != nil {
 		fmt.Printf("Failed to publish to MQTT: %v\n", token.Error())

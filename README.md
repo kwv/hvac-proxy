@@ -158,9 +158,38 @@ The proxy listens on port 8080 by default. To change this, set the `PORT` enviro
 Authentication is optional (leave user/password blank if not needed). To enable MQTT, you MUST set `MQTT_BROKER`.
 
 - `MQTT_BROKER`: Broker URL (e.g., `tcp://localhost:1883`). **Required to enable MQTT.**
-- `MQTT_TOPIC`: Topic to publish to (default: `/hvac/`).
+- `MQTT_TOPIC`: Topic to publish to (default: `hvac/`).
 - `MQTT_USER`: MQTT username.
 - `MQTT_PASSWORD`: MQTT password.
+- `MQTT_QOS`: Quality of Service level (0, 1, or 2). Default is 0.
+- `MQTT_RETAINED`: Whether to retain the message (true or false). Default is false.
+
+### MQTT Topic Payload
+
+The payload published to the MQTT topic is a JSON object containing the current system status:
+
+```json
+{
+  "localTime": "2024-04-05T14:30:00Z",
+  "outdoorAirTemp": 63.5,
+  "filterLevel": 40,
+  "idu": {
+    "cfm": 437,
+    "opstat": "off"
+  },
+  "zones": {
+    "zones": [
+      {
+        "id": 1,
+        "currentTemp": 72.3,
+        "relativeHumidity": 45,
+        "heatSetPoint": 68,
+        "coolSetPoint": 75
+      }
+    ]
+  }
+}
+```
 
 Example usage:
 

@@ -114,6 +114,7 @@ func SaveMetricsFromXML(xmlData []byte) error {
 // PublishMQTT publishes the status to the MQTT topic.
 func PublishMQTT(s *Status) {
 	if mqttClient == nil || !mqttClient.IsConnected() {
+		fmt.Println("MQTT client not connected, skipping publish")
 		return
 	}
 
@@ -139,6 +140,7 @@ func PublishMQTT(s *Status) {
 		return
 	}
 
+	fmt.Printf("Publishing to topic %s: %s\n", topic, string(payload))
 	token := mqttClient.Publish(topic, qos, retained, payload)
 	token.Wait()
 	if token.Error() != nil {

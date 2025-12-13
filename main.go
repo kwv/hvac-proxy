@@ -95,7 +95,11 @@ func init() {
 	}
 	os.Setenv("PORT", port)
 }
+
+var Version = "dev"
+
 func main() {
+	fmt.Printf("HVAC Proxy version: %s\n", Version)
 	hvac.InitMQTT()
 
 	http.HandleFunc("/", proxyHandler)

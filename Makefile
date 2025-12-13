@@ -17,7 +17,7 @@ test:
 # New target for local development builds
 build-dev:
 	@echo "Building dev image: $(IMAGE_NAME):$(DEV_VERSION)"
-	docker build -t $(IMAGE_NAME):$(DEV_VERSION) .
+	docker build --build-arg VERSION=$(DEV_VERSION) -t $(IMAGE_NAME):$(DEV_VERSION) .
 
 # 🚀 New target: bump the version, create a new tag, and push it
 bump:
@@ -54,7 +54,7 @@ check-tag:
 
 # This 'build' is part of the 'release' pipeline and must use the strict VERSION
 build:
-	docker build -t $(IMAGE_NAME):$(VERSION) .
+	docker build --build-arg VERSION=$(VERSION) -t $(IMAGE_NAME):$(VERSION) .
 
 tag:
 	docker tag $(IMAGE_NAME):$(VERSION) $(REMOTE_IMAGE):$(VERSION)

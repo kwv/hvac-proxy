@@ -22,7 +22,7 @@ COPY . .
 
 # Build the binary
 # Use a common Alpine base for better compatibility with distroless later
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o hvac-proxy .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-X main.Version=${VERSION}" -a -installsuffix cgo -o hvac-proxy .
 
 # Final stage - distroless
 # Changed base image to a secure, stable image from the Google project

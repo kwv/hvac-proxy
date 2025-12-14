@@ -120,7 +120,7 @@ func PublishMQTT(s *Status) {
 
 	topic := os.Getenv("MQTT_TOPIC")
 	if topic == "" {
-		topic = "hvac/"
+		topic = "hvac/value"
 	}
 	qosStr := os.Getenv("MQTT_QOS")
 	var qos byte

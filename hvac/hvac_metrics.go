@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -23,9 +24,28 @@ func InitMQTT() {
 		return
 	}
 
+	if os.Getenv("MQTT_DEBUG") != "" {
+		mqtt.DEBUG = log.New(os.Stdout, "[MQTT-DEBUG] ", 0)
+		mqtt.ERROR = log.New(os.Stderr, "[MQTT-ERROR] ", 0)
+	}
+
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(broker)
-	opts.SetClientID("hvac-proxy")
+
+	clientID := os.Getenv("MQTT_CLIENT_ID")
+	if clientID == "" {
+		hostname, _ := os.Hostname()
+		if hostname != "" {
+			clientID = fmt.Sprintf("hvac-proxy-%s", hostname)
+		} else {
+			clientID = "hvac-proxy"
+		}
+	}
+	opts.SetClientID(clientID)
+
+	opts.SetAutoReconnect(true)
+	opts.SetConnectRetry(true)
+	opts.SetConnectRetryInterval(10 * time.Second)
 
 	username := os.Getenv("MQTT_USER")
 	if username != "" {
@@ -34,19 +54,31 @@ func InitMQTT() {
 	}
 
 	opts.OnConnect = func(c mqtt.Client) {
-		fmt.Println("Connected to MQTT broker")
+		fmt.Printf("Connected to MQTT broker as %s\n", clientID)
 	}
 	opts.OnConnectionLost = func(c mqtt.Client, err error) {
 		fmt.Printf("Connection lost: %v\n", err)
 	}
-
-	client := mqtt.NewClient(opts)
-	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		fmt.Printf("Error connecting to MQTT broker: %v\n", token.Error())
-		return
+	opts.OnReconnecting = func(c mqtt.Client, opts *mqtt.ClientOptions) {
+		fmt.Println("Reconnecting to MQTT broker...")
 	}
 
+	client := mqtt.NewClient(opts)
 	mqttClient = client
+
+	// Start connection in background to avoid blocking server startup
+	go func() {
+		fmt.Printf("Connecting to MQTT broker: %s\n", broker)
+		token := client.Connect()
+		// Wait short time for initial connection to provide immediate feedback
+		if token.WaitTimeout(5 * time.Second) {
+			if token.Error() != nil {
+				fmt.Printf("Initial MQTT connection attempt failed (background retrying): %v\n", token.Error())
+			}
+		} else {
+			fmt.Println("Initial MQTT connection attempt timed out (background retrying...)")
+		}
+	}()
 }
 
 // This file contains functions to parse HVAC status XML data and generate

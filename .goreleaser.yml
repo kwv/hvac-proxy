@@ -20,48 +20,30 @@ builds:
       - -s -w -X main.Version={{.Version}}
     binary: hvac-proxy
 
-dockers:
-  - image_templates:
-      - "kwv4/hvac-proxy:{{ .Version }}-amd64"
-    use: docker
+dockers_v2:
+  - id: hvac-proxy
+    image_templates:
+      - "kwv4/hvac-proxy:{{ .Version }}"
+      - "kwv4/hvac-proxy:latest"
     dockerfile: Dockerfile
     build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    goos: linux
-    goarch: amd64
-
-  - image_templates:
-      - "kwv4/hvac-proxy:{{ .Version }}-arm64"
-    use: docker
-    dockerfile: Dockerfile
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.version={{.Version}}"
-    goos: linux
-    goarch: arm64
-
-docker_manifests:
-  - name_template: "kwv4/hvac-proxy:{{ .Version }}"
-    image_templates:
-      - "kwv4/hvac-proxy:{{ .Version }}-amd64"
-      - "kwv4/hvac-proxy:{{ .Version }}-arm64"
-  - name_template: "kwv4/hvac-proxy:latest"
-    image_templates:
-      - "kwv4/hvac-proxy:{{ .Version }}-amd64"
-      - "kwv4/hvac-proxy:{{ .Version }}-arm64"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+    # Platforms to build for
+    platforms:
+      - linux/amd64
+      - linux/arm64
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
 
 checksum:
   name_template: 'checksums.txt'
 
 snapshot:
-  name_template: "{{ incpatch .Version }}-next"
+  version_template: "{{ incpatch .Version }}-next"
 
 changelog:
   sort: asc

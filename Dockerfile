@@ -2,7 +2,8 @@
 FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
-COPY hvac-proxy /app/hvac-proxy
+ARG TARGETPLATFORM
+COPY ${TARGETPLATFORM:-.}/hvac-proxy /app/hvac-proxy
 
 EXPOSE 8080
 USER nonroot:nonroot

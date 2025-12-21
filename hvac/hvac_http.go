@@ -40,7 +40,7 @@ func SaveBody(r *http.Request, content []byte, isRequest bool) {
 
 	// If this is a request to the "/status" endpoint, update metrics from the XML content
 	if strings.HasSuffix(r.URL.Path, "/status") && isRequest {
-		SaveMetricsFromXML(content)
+		_ = SaveMetricsFromXML(content)
 	}
 
 	// Determine file extension based on content type

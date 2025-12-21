@@ -44,7 +44,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 	// Read request body
 	var reqBuf bytes.Buffer
 	if r.Body != nil {
-		io.Copy(&reqBuf, r.Body)
+		_, _ = io.Copy(&reqBuf, r.Body)
 	}
 	body := reqBuf.Bytes()
 	r.Body = io.NopCloser(bytes.NewBuffer(body))
@@ -63,11 +63,11 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Upstream error", http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	elapsed := time.Since(startTime)
 	// Log and save response body
 	var respBuf bytes.Buffer
-	io.Copy(&respBuf, resp.Body)
+	_, _ = io.Copy(&respBuf, resp.Body)
 	respBody := respBuf.Bytes()
 
 	logResponse(resp, elapsed)
@@ -75,7 +75,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Write response
 	w.WriteHeader(resp.StatusCode)
-	w.Write(respBody)
+	_, _ = w.Write(respBody)
 }
 
 func init() {
@@ -87,13 +87,13 @@ func init() {
 			fmt.Printf("Failed to create temp directory: %v\n", err)
 			return
 		}
-		os.Setenv("DATA_DIR", tmp)
+		_ = os.Setenv("DATA_DIR", tmp)
 	}
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
-	os.Setenv("PORT", port)
+	_ = os.Setenv("PORT", port)
 }
 
 var Version = "dev"

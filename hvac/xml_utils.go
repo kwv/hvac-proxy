@@ -31,7 +31,7 @@ func PrettifyXML(input []byte) []byte {
 			return input // Return original on error
 		}
 	}
-	encoder.Flush()
+	_ = encoder.Flush()
 
 	if buf.Len() > 0 {
 		return buf.Bytes()

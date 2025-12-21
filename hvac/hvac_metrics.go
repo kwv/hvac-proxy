@@ -273,5 +273,5 @@ func HandleMetrics(w http.ResponseWriter, r *http.Request) {
 
 	// Set the content type to plain text and write the response
 	w.Header().Set("Content-Type", "text/plain")
-	w.Write(data)
+	_, _ = w.Write(data)
 }

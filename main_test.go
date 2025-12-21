@@ -26,7 +26,7 @@ func TestProxyHandler_ForwardsRequest(t *testing.T) {
 		body, _ := io.ReadAll(r.Body)
 		assert.Contains(t, string(body), "<status>")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`<status><oat>55</oat></status>`))
+		_, _ = w.Write([]byte(`<status><oat>55</oat></status>`))
 	}))
 	defer upstream.Close()
 

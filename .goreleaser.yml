@@ -1,0 +1,71 @@
+# .goreleaser.yml for hvac-proxy
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: hvac-proxy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.Version={{.Version}}
+    binary: hvac-proxy
+
+dockers:
+  - image_templates:
+      - "kwv4/hvac-proxy:{{ .Version }}-amd64"
+    use: docker
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    goos: linux
+    goarch: amd64
+
+  - image_templates:
+      - "kwv4/hvac-proxy:{{ .Version }}-arm64"
+    use: docker
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    goos: linux
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "kwv4/hvac-proxy:{{ .Version }}"
+    image_templates:
+      - "kwv4/hvac-proxy:{{ .Version }}-amd64"
+      - "kwv4/hvac-proxy:{{ .Version }}-arm64"
+  - name_template: "kwv4/hvac-proxy:latest"
+    image_templates:
+      - "kwv4/hvac-proxy:{{ .Version }}-amd64"
+      - "kwv4/hvac-proxy:{{ .Version }}-arm64"
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'

@@ -9,10 +9,13 @@ DEV_VERSION := $(shell git describe --tags --dirty --always 2>/dev/null | sed 's
 
 REMOTE_IMAGE := $(DOCKERHUB_USER)/$(IMAGE_NAME)
 
-.PHONY: test build-dev bump bump-minor bump-major check-version show-version clean lint
+.PHONY: test build-dev bump bump-minor bump-major check-version show-version clean lint verify-release
 
 lint:
 	$(shell go env GOPATH)/bin/golangci-lint run
+
+verify-release:
+	goreleaser release --snapshot --clean --skip=publish
 
 test:
 	go test ./...

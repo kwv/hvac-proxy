@@ -22,12 +22,14 @@ builds:
 
 dockers_v2:
   - id: hvac-proxy
-    image_templates:
-      - "kwv4/hvac-proxy:{{ .Version }}"
-      - "kwv4/hvac-proxy:latest"
+    images:
+      - "kwv4/hvac-proxy"
+    tags:
+      - "{{ .Version }}"
+      - "latest"
     dockerfile: Dockerfile
-    build_flag_templates:
-      - "--label=org.opencontainers.image.version={{ .Version }}"
+    labels:
+      org.opencontainers.image.version: "{{ .Version }}"
     # Platforms to build for
     platforms:
       - linux/amd64

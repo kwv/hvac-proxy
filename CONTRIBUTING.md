@@ -62,6 +62,12 @@ The GitHub Actions workflow triggers on every push and pull request to ensure th
     - GitHub Release binaries (Linux, Windows, Darwin for `amd64` and `arm64`)
     - Multi-arch Docker images (`kwv4/hvac-proxy:v1.2.3` and `latest`)
 
+### 🧹 Tag Cleanup
+The repository contains a weekly automated cleanup job (`docker-cleanup.yml`) that:
+- Synchronizes Git tags and Docker Hub tags.
+- Keeps the `latest` tag and the most recent semantic version tags (configured via `KEEP_RECENT`).
+- Removes orphaned or old version tags from both systems.
+
 ------------------------------------------------------------------------
 
 ## 🧪 Testing Locally
